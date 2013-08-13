@@ -68,7 +68,7 @@ class emailParser
         $this->extractHeadersAndRawBody();
 
         $this->parseHeaders();
-
+		
         $this->parseContent();
 
 
@@ -99,27 +99,30 @@ class emailParser
             {
                 $newHeader = strtolower(trim($matches[1]));
                 $value = trim(stripslashes($matches[2]));
-                $this->headers[$newHeader] = ($currentHeader == $newHeader) ? $this->headers[$newHeader] . $value : $value;
+                if(!isset($this->headers[$newHeader]))
+                	$this->headers[$newHeader] = ($currentHeader == $newHeader) ? $this->headers[$newHeader] . $value : $value;
+               	else
+               		$this->headers[$newHeader] .= ' '.(($currentHeader == $newHeader) ? $this->headers[$newHeader] . $value : $value);
+               		
                 $currentHeader = $newHeader;
-
-                //check and extract the boundry if exists
-                if ($newHeader == 'content-type' && preg_match("/boundary=(.*)/i", $value, $matches))
-                {
-                    $this->boundry = '--' . trim($matches[1], '"\' ');
-                }
-
-                //check and extract the charset if exists
-                if ($newHeader == 'content-type' && preg_match("/charset=(.*)/i", $value, $matches))
-                {
-                    $this->charset = strtolower(trim($matches[1], '"\' '));
-                }
-
             }
             else
                 if ($currentHeader)
                 { //concate to the current
                     $this->headers[$currentHeader] .= ' ' . trim($line);
                 }
+        }
+        
+        //check and extract the boundry if exists
+        if (isset($this->headers["content-type"]))
+        {
+            $this->boundry = $this->getBoundry($this->headers["content-type"]);
+        }
+
+        //check and extract the charset if exists
+        if (isset($this->headers["content-type"]) && preg_match("/charset=(.*)/i", $this->headers["content-type"], $matches))
+        {
+            $this->charset = strtolower(trim($matches[1], '"\' '));
         }
     }
 
@@ -203,15 +206,15 @@ class emailParser
             }
 
             $content_type = null;
-            if (preg_match("/Content\-Type: ?([^;]+) ?;/i", $data, $matches))
+            if (preg_match("%Content\-Type: ?([a-z]+/[a-z]+)%i", $data, $matches))
             {
                 $content_type = strtolower($matches[1]);
             }
-            $encoding = $this->getEncoding($data);
-
+            
             $file["filename"] = $filename;
             $file["content_type"] = $content_type;
-
+			
+			$encoding = $this->getEncoding($data);
 
             $file["data"] = $this->decodeContent(substr($data, strpos($data, "\n\n")), $encoding, 'utf-8', true);
 
@@ -385,9 +388,19 @@ class emailParser
      * 
      * @return Associative Array - array of all the attachments, each entry is assoc array with file info.
      */
-    public function getAttachments()
+    public function getAttachments($type='')
     {
-        return $this->files;
+    	if($type)
+    	{
+    		foreach($this->files as $file)
+    		{
+    			//check the file type
+    			if(strpos($file["content_type"], $type)!==false || strpos($file["file_name"], '.'.$type))
+    			return $file;
+    		}
+    	}
+
+		return $this->files;
     }
 }
 
