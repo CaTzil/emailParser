@@ -180,7 +180,7 @@ class emailParser
 
     protected function parseBody($data)
     {
-        if (preg_match("/content\-type: ?text\/(html|plain); ?charset=(.*)/i", $data, $matches))
+        if ((preg_match("/content-type:\s*text/(html|plain);\s*charset=(.*)/i", $data, $matches))
         {
             $type = strtolower($matches[1]);
             $charset = trim(strtolower(stripslashes($matches[2])), "\"'\r\n ");
